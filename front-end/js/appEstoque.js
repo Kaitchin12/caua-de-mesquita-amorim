@@ -38,9 +38,7 @@ async function carregarProdutos() {
                 statusCor = "gray";
             }
 
-            // ATENÇÃO AQUI EMBAIXO:
-            // Adicionei as aspas '' no nome_prod para não quebrar se tiver espaços
-            // E passei todos os parametros: id, nome, preco, quantidade
+           
             tr.innerHTML = `
                 <td>${produto.nome_prod}</td>
                 <td>${caracteristicas}</td>
@@ -170,3 +168,4 @@ async function excluirProduto(id) {
         }
     }
 }
+
