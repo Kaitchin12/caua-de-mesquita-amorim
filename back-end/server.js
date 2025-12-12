@@ -164,7 +164,7 @@ app.post('/movimentacao', (req, res) => {
             const observacao = item.observacao || 'Sem observação';
             const usuario = item.usuario || 'Desconhecido';
             
-            // NOVO: Recebe a data do frontend ou usa a atual se não vier nada
+            //  Recebe a data do frontend ou usa a atual se não vier nada
             const data_mov = item.data_movimentacao ? item.data_movimentacao : new Date();
 
             const sqlBuscaNome = "SELECT nome_prod FROM produto WHERE id = ?";
