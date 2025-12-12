@@ -12,7 +12,23 @@ senha varchar(100)
 create table produto (
 id int auto_increment primary key,
 nome_prod varchar(100),
-preco float,
-quantidade int
+quantidade int,
+material VARCHAR(50),                
+tamanho VARCHAR(50),                  
+tensao VARCHAR(20),                   
+estoque_minimo INT DEFAULT 5
 );
 
+CREATE TABLE movimentacao (
+    id int auto_increment primary key,
+    id_produto int,
+    tipo ENUM('ENTRADA', 'SAIDA') NOT NULL, 
+    quantidade int NOT NULL,
+    data_movimentacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+    observacao varchar(255), 
+    FOREIGN KEY (id_produto) REFERENCES produto(id)	
+);
+
+select * from usuario;	                                                                                
+select * from produto;	
+select * from movimentacao;	
