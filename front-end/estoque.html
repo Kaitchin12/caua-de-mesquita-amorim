@@ -26,6 +26,9 @@
             <i class="fa-solid fa-right-to-bracket"></i> logout
         </a>
       
+            <p class="paragrafo-para-usuario">
+
+        </p>
     </nav>
 
     <main class="main-content fade-in">
@@ -41,66 +44,77 @@
             </div>
 
             <div id="myModal" class="modal">
+                <div class="modal-content">
+                    
+                    <div class="modal-header">
+                        <h3>Novo Produto / Ferramenta</h3>
+                        <span class="close">&times;</span>
+                    </div>
 
-  <div class="modal-content">
-    
-    <div class="modal-header">
-      <h2>Novo Produto</h2>
-      <span class="close">&times;</span>
-    </div>
+                    <div class="modal-body">
+                        <form class="formulario-modal">
+                            
+                            <div class="form-group">
+                                <label>Identificação</label>
+                                <input type="text" class="input-nome-modal" placeholder="Nome (Ex: Martelo de Unha)" required>
+                                
+                                <div class="row" style="display: flex; gap: 10px; margin-top: 10px;">
+                                    <input type="text" class="input-marca" placeholder="Marca (Ex: Tramontina)" style="flex: 1;">
+                                    <input type="text" class="input-modelo" placeholder="Modelo (Ex: Master)" style="flex: 1;">
+                                </div>
+                            </div>
 
-    <div class="modal-body">
-      <form class="formulario-modal">
-        <div class="form-group">
-          <label for="nome">Nome do Produto</label>
-          <input class="input-nome-modal" type="text" id="nome" name="nome_prod" placeholder="Ex: Camiseta Preta">
-        </div>
+                            <div class="form-group" style="margin-top: 15px;">
+                                <label>Especificações Técnicas</label>
+                                <div class="row" style="display: flex; gap: 10px;">
+                                    <input type="text" class="input-material" placeholder="Material (Ex: Cabo Tubular)" style="flex: 1;">
+                                    <input type="text" class="input-tamanho" placeholder="Tam/Peso (Ex: 16oz)" style="flex: 1;">
+                                </div>
+                                <div class="row" style="margin-top: 10px;">
+                                    <select class="input-tensao" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                        <option value="">Selecione a Tensão (Opcional)</option>
+                                        <option value="N/A">N/A (Ferramenta Manual)</option>
+                                        <option value="127v">127v</option>
+                                        <option value="220v">220v</option>
+                                        <option value="Bivolt">Bivolt</option>
+                                        <option value="Bateria">Bateria</option>
+                                    </select>
+                                </div>
+                            </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="preco">Preço (R$)</label>
-            <input class="input-preco" type="number" id="preco" name="preco" step="0.01" placeholder="0,00">
-          </div>
+                            <div class="form-group" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                                <label>Controle de Estoque</label>
+                                <div class="row" style="display: flex; gap: 10px;">
+                                    <input type="number" class="input-quantidade" placeholder="Qtd Atual" required min="0" style="flex: 1;">
+                                    <input type="number" class="input-minimo" placeholder="Estoque Mínimo (Alerta)" required min="1" value="5" style="flex: 1;">
+                                </div>
+                            </div>
 
-          <div class="form-group">
-            <label for="quantidade">Quantidade</label>
-            <input class="input-quantidade" type="number" id="quantidade" name="quantidade" placeholder="0">
-          </div>
-        </div>
+                            <button type="submit" class="btn-save btn-salvar" style="margin-top: 20px; width: 100%;">Salvar Produto</button>
+                        </form>
+                    </div>
 
-        <div class="form-actions">
-          <button type="submit" class="btn-save">Salvar Produto</button>
-        </div>
-      </form>
-    </div>
-
-  </div>
-</div>
-        
+                </div>
+            </div>
             <table class="tabela-pagina-estoque">
                 <thead>
                     <tr>
-                        <th>Item / Modelo</th>
-                        <th>Características Específicas</th>
-                        <th>Categoria</th>
-                        <th>Estoque</th>
-                        <th>Mínimo</th>
-                        <th>Status</th>
-                        <th>Ações</th>
+                        <th style="width: 25%;">Item / Modelo</th>
+                        <th style="width: 25%;">Especificações</th>
+                        <th style="width: 10%; text-align: center;">Qtd</th>
+                        <th style="width: 10%; text-align: center;">Mín.</th>
+                        <th style="width: 15%; text-align: center;">Status</th>
+                        <th style="width: 15%; text-align: center;">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                    </tbody>
             </table>
             
-            <div style="text-align: center; padding: 40px; color: #95a5a6;">
-                <i class="fa-regular fa-folder-open" style="font-size: 40px; margin-bottom: 10px; display: block;"></i>
-                <p>Nenhum item encontrado no estoque.</p>
             </div>
-            
-        </div>
     </main>
 
     <script src="js/appEstoque.js"></script>
+    
 </body>
 </html>

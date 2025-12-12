@@ -18,21 +18,24 @@ form.addEventListener('submit', async (event) => {
     };
 
     try {
-      
         const response = await fetch('http://localhost:2005/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dadosLogin)
         });
 
-        const respostaTexto = await response.text();
+       
+        const dados = await response.json();
 
         if (response.ok) {
+          
+            localStorage.setItem("usuarioLogado", dados.nome);
             
             window.location.href = "home.html"; 
         } else {
-            alert("Acesso negado: " + respostaTexto);
-            document.getElementById('password').value = ""; // Limpa a senha
+          
+            alert("Acesso negado: " + (dados.error || "Verifique suas credenciais"));
+            document.getElementById('password').value = ""; 
         }
 
     } catch (error) {

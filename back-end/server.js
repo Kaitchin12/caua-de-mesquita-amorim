@@ -49,43 +49,54 @@ app.post("/cadastroUsuario", (req, res) => {
 
 
 app.post("/login", (req, res) => {
-    const { email,senha } = req.body;
+    const { email, senha } = req.body;
+    const sql = "SELECT * FROM usuario WHERE email = ? AND senha = ?";
 
-        const sql = "SELECT * FROM usuario WHERE email = ? AND senha = ?";
-
-    connection.query(sql, [email,senha], (err,results) => {
-       if (err) {
-            return res.status(500).send("Erro no servidor.");
+    connection.query(sql, [email, senha], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: "Erro no servidor." });
         }
 
-        // Se a lista de resultados for maior que 0, achou o usuário!
         if (results.length > 0) {
-            // Sucesso (Status 200)
-            res.status(200).send("Login realizado com sucesso!");
+         
+            const usuarioEncontrado = results[0];
+            res.status(200).json({
+                mensagem: "Login realizado com sucesso!",
+                nome: usuarioEncontrado.nome 
+            });
         } else {
-            // Falha (Status 401 - Não autorizado)
-            res.status(401).send("Email ou senha incorretos.");
+            res.status(401).json({ error: "Email ou senha incorretos." });
         }
     });
 });
 
 
 
-
-
-
 app.post("/produtoCadastro", (req, res) => {
-    const { nome_prod,preco,quantidade } = req.body;
+    // 1. Recebendo todos os novos campos do formulário
+    const { 
+        nome_prod, 
+        marca, 
+        modelo, 
+        material, 
+        tamanho, 
+        tensao,  
+        quantidade,
+        estoque_minimo 
+    } = req.body;
 
-    const sql = "INSERT INTO produto (nome_prod, preco, quantidade) VALUES (?, ?, ?)";
+   
+    const sql = `INSERT INTO produto 
+                 (nome_prod, marca, modelo, material, tamanho, tensao,  quantidade, estoque_minimo) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    connection.query(sql, [nome_prod, preco,quantidade], (err) => {
+    connection.query(sql, [nome_prod, marca, modelo, material, tamanho, tensao,  quantidade, estoque_minimo], (err) => {
         if (err) {
-            console.error("Erro ao cadastrar tarefa:", err.message);
+            console.error("Erro ao cadastrar produto:", err.message);
             return res.status(500).send("Erro ao salvar no banco.");
         }
 
-        res.send("produto cadastrada com sucesso!");
+        res.send("produto cadastrado com sucesso!");
     });
 });
 
@@ -107,21 +118,22 @@ app.post("/produtoCadastro", (req, res) => {
         });
     });
 
-    app.put("/editarProduto", (req,res) => {
-          const {id, nome_prod, preco, quantidade } = req.body;
 
-    const sql = "UPDATE produto SET nome_prod = ?, preco = ?, quantidade = ? WHERE id = ?";
+   
 
-    connection.query(sql,[ nome_prod, preco, quantidade,id], (err) => {
+    app.put("/editarProduto", (req, res) => {
+    const { id, nome_prod, marca, modelo, material, tamanho, tensao, quantidade, estoque_minimo } = req.body;
+
+    const sql = "UPDATE produto SET nome_prod = ?, marca = ?, modelo = ?, material = ?, tamanho = ?, tensao = ?, quantidade = ?, estoque_minimo = ? WHERE id = ?";
+
+    connection.query(sql, [nome_prod, marca, modelo, material, tamanho, tensao, quantidade, estoque_minimo, id], (err) => {
         if (err) {
-            console.error("Erro ao editar tarefa:", err.message);
+            console.error("Erro ao editar produto:", err.message);
             return res.status(500).send("Erro ao salvar no banco.");
         }
-
-        res.send("Tarefa editada com sucesso!");
+        res.send("Produto atualizado com sucesso!");
     });
-
-    })
+});
 
 
     app.delete("/deletarProduto/:id", (req, res) => {
@@ -142,42 +154,81 @@ app.post("/produtoCadastro", (req, res) => {
 
 
 app.post('/movimentacao', (req, res) => {
-    // Verifica se o corpo é uma LISTA (Array) ou um objeto único
+    // Recebe os dados, incluindo o novo campo "usuario"
     const dados = Array.isArray(req.body) ? req.body : [req.body];
 
-    // Vamos processar todos os itens da lista
     const promessas = dados.map(item => {
         return new Promise((resolve, reject) => {
-            // Se vier do modal de checkbox, as chaves podem ser diferentes, ajustamos aqui:
+
             const id_produto = item.id_produto || item.id; 
             const quantidade = item.quantidade;
-            const tipo = item.tipo || 'SAIDA'; // Se vier do modal, assumimos SAIDA
-            const observacao = item.observacao || 'Baixa em Massa';
+            const tipo = item.tipo || 'SAIDA';
+            const observacao = item.observacao || 'Sem observação';
+            const usuario = item.usuario || 'Desconhecido'; // <--- NOVO CAMPO
 
-            // 1. Histórico
-            const sqlMov = "INSERT INTO movimentacao (id_produto, tipo, quantidade, observacao) VALUES (?, ?, ?, ?)";
-            connection.query(sqlMov, [id_produto, tipo, quantidade, observacao], (err) => {
+            // 1. Pega o nome do produto
+            const sqlBuscaNome = "SELECT nome_prod FROM produto WHERE id = ?";
+            
+            connection.query(sqlBuscaNome, [id_produto], (err, result) => {
                 if (err) return reject(err);
+              
+                const nomeProduto = result.length > 0 ? result[0].nome_prod : "Produto removido";
 
-                // 2. Atualiza Estoque
-                let sqlUpdate = "";
-                if (tipo === 'ENTRADA') sqlUpdate = "UPDATE produto SET quantidade = quantidade + ? WHERE id = ?";
-                else sqlUpdate = "UPDATE produto SET quantidade = quantidade - ? WHERE id = ?";
+                // 2. Insere na tabela MOVIMENTACAO com o nome do USUARIO
+                const sqlMov = `
+                    INSERT INTO movimentacao 
+                    (id_produto, nome_produto, tipo, quantidade, observacao, usuario)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `;
 
-                connection.query(sqlUpdate, [quantidade, id_produto], (errUpdate) => {
-                    if (errUpdate) return reject(errUpdate);
-                    resolve();
+                connection.query(sqlMov, [id_produto, nomeProduto, tipo, quantidade, observacao, usuario], (errInsert) => {
+                    if (errInsert) return reject(errInsert);
+
+                    // 3. Atualiza o estoque na tabela PRODUTO
+                    let sqlUpdate = "";
+                    if (tipo === 'ENTRADA') 
+                        sqlUpdate = "UPDATE produto SET quantidade = quantidade + ? WHERE id = ?";
+                    else 
+                        sqlUpdate = "UPDATE produto SET quantidade = quantidade - ? WHERE id = ?";
+
+                    connection.query(sqlUpdate, [quantidade, id_produto], (errUpdate) => {
+                        if (errUpdate) return reject(errUpdate);
+                        resolve();
+                    });
                 });
             });
         });
     });
 
-    // Espera todos terminarem
     Promise.all(promessas)
-        .then(() => res.status(200).send("Movimentações realizadas!"))
-        .catch((err) => res.status(500).send("Erro: " + err.message));
+        .then(() => res.send("Movimentação registrada com sucesso."))
+        .catch(err => {
+            console.error("Erro ao registrar movimentação:", err);
+            res.status(500).send("Erro ao registrar movimentação.");
+        });
 });
 
+
+
+  app.get("/mostrarMovimentacao", (req,res) => {
+    
+
+        const sql = `  SELECT 
+            movimentacao.*,
+            produto.nome_prod
+        FROM movimentacao
+        LEFT JOIN produto ON movimentacao.id_produto = produto.id
+        ORDER BY movimentacao.data_movimentacao DESC; `;
+
+        connection.query(sql, (err, results) => {
+            if (err) {
+                console.error("Erro ao listar movimentacoes:", err.message);
+                return res.status(500).send("Erro ao buscar dados.");
+            }
+
+            res.json(results);
+        });
+    });
 
 
 app.listen(2005, () =>

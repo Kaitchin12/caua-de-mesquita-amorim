@@ -1,4 +1,13 @@
-// --- VARIÁVEIS DO MODAL
+// --- CONFIGURAÇÃO ---
+const API_URL = "http://localhost:2005";
+
+// --- VARIÁVEIS GLOBAIS ---
+let listaProdutosGlobal = []; // Armazena todos os produtos para a pesquisa funcionar localmente
+const formulario = document.querySelector(".formulario-modal");
+const tbodyTabela = document.querySelector(".tabela-pagina-estoque tbody");
+const searchInput = document.querySelector(".search-input"); // Captura o input de busca
+
+// --- VARIÁVEIS DO MODAL ---
 var modal = document.getElementById("myModal");
 var btn = document.getElementById("myBtn");
 var span = document.getElementsByClassName("close")[0];
@@ -9,73 +18,147 @@ window.onclick = function(event) {
   if (event.target == modal) { modal.style.display = "none"; }
 }
 
-const formulario = document.querySelector(".formulario-modal");
-const tbodyTabela = document.querySelector(".tabela-pagina-estoque tbody");
+// --- LÓGICA DE USUÁRIO (HEADER) ---
+const nomeUsuarioLogado = localStorage.getItem("usuarioLogado");
+const pUsuario = document.querySelector(".paragrafo-para-usuario");
+if (pUsuario) {
+    if (nomeUsuarioLogado) {
+        pUsuario.innerHTML = `Olá, <strong>${nomeUsuarioLogado}</strong>`;
+    } else {
+        pUsuario.innerText = "Bem-vindo";
+    }
+}
+// Logout
+const btnLogout = document.querySelector('a[href="login.html"]');
+if (btnLogout) {
+    btnLogout.onclick = function() { localStorage.removeItem("usuarioLogado"); };
+}
 
-// --- FUNÇÃO CARREGAR PRODUTOS 
+
+// --- 1. FUNÇÃO CARREGAR DADOS DO SERVIDOR (GET) ---
 async function carregarProdutos() {
     try {
-        const response = await fetch('http://localhost:2005/mostrarProduto');
+        const response = await fetch(`${API_URL}/mostrarProduto`);
         const produtos = await response.json();
 
-        tbodyTabela.innerHTML = "";
+        // 1. Salva na variável global para a pesquisa usar depois
+        listaProdutosGlobal = produtos;
 
-        produtos.forEach(produto => {
-            const tr = document.createElement("tr");
-
-            const caracteristicas = produto.caracteristicas || "-"; 
-            const categoria = produto.categoria || "Geral";
-            const minimo = produto.estoque_minimo || 5;
-            
-            let statusTexto = "OK";
-            let statusCor = "green"; 
-            
-            if (produto.quantidade <= minimo) {
-                statusTexto = "Baixo";
-                statusCor = "red";
-            } else if (produto.quantidade == 0) {
-                statusTexto = "Indisponível";
-                statusCor = "gray";
-            }
-
-           
-            tr.innerHTML = `
-                <td>${produto.nome_prod}</td>
-                <td>${caracteristicas}</td>
-                <td>${categoria}</td>
-                <td>${produto.quantidade} un.</td>
-                <td>${minimo}</td>
-                <td style="color: ${statusCor}; font-weight: bold;">${statusTexto}</td>
-                <td>
-                    <button class="btn-editar" onclick="editarProduto(${produto.id}, '${produto.nome_prod}', ${produto.preco}, ${produto.quantidade})">✏️</button>
-                    <button class="btn-excluir" onclick="excluirProduto(${produto.id})">🗑️</button>
-                </td>
-            `;
-
-            tbodyTabela.appendChild(tr);
-        });
+        // 2. Renderiza a tabela com todos os produtos iniciais
+        renderizarTabela(listaProdutosGlobal);
 
     } catch (error) {
         console.error("Erro ao carregar tabela:", error);
+        tbodyTabela.innerHTML = "<tr><td colspan='6'>Erro ao conectar com servidor.</td></tr>";
     }
 }
 
-// --- CADASTRO PRODUTO
+// --- 2. FUNÇÃO PARA DESENHAR A TABELA (USADA PELA CARGA E PELA PESQUISA) ---
+function renderizarTabela(lista) {
+    tbodyTabela.innerHTML = "";
+
+    if (lista.length === 0) {
+        tbodyTabela.innerHTML = "<tr><td colspan='6' style='text-align:center'>Nenhum produto encontrado.</td></tr>";
+        return;
+    }
+
+    lista.forEach(prod => {
+        const tr = document.createElement("tr");
+
+        // Tratamento de nulos
+        const marca = prod.marca || "";
+        const modelo = prod.modelo || "";
+        const material = prod.material || "";
+        const tamanho = prod.tamanho || "";
+        const tensao = prod.tensao || ""; 
+        const minimo = prod.estoque_minimo || 5;
+
+        // Visualização concatenada
+        const ferramentaCompleta = `<strong>${prod.nome_prod}</strong> <br> <small style="color:#666">${marca} ${modelo}</small>`;
+        const especificacoes = `${material} | ${tamanho} ${tensao ? '| ' + tensao : ''}`;
+        
+        // Lógica de Status
+        let statusBadge = "<span style='color:green; font-weight:bold;'>OK</span>";
+        let opacity = "1";
+
+        if (prod.quantidade == 0) {
+            statusBadge = "<span style='color:gray; font-weight:bold;'>INDISPONÍVEL</span>";
+            opacity = "0.6";
+        } else if (prod.quantidade <= minimo) {
+            statusBadge = "<span style='color:red; font-weight:bold;'>BAIXO ⚠️</span>";
+        }
+
+        tr.innerHTML = `
+            <td style="opacity:${opacity}">${ferramentaCompleta}</td>
+            <td style="opacity:${opacity}">${especificacoes}</td>
+            <td style="opacity:${opacity}; text-align:center;">${prod.quantidade}</td>
+            <td style="opacity:${opacity}; text-align:center;">${minimo}</td>
+            <td style="opacity:${opacity}; text-align:center;">${statusBadge}</td>
+            <td style="text-align:center;">
+                <button class="btn-editar" 
+                    onclick="editarProduto(
+                        ${prod.id}, 
+                        '${prod.nome_prod}', 
+                        '${marca}', 
+                        '${modelo}', 
+                        '${material}', 
+                        '${tamanho}', 
+                        '${tensao}', 
+                        ${prod.quantidade}, 
+                        ${minimo}
+                    )">
+                    ✏️
+                </button>
+                <button class="btn-excluir" onclick="excluirProduto(${prod.id})">🗑️</button>
+            </td>
+        `;
+
+        tbodyTabela.appendChild(tr);
+    });
+}
+
+// --- 3. LÓGICA DE PESQUISA (EVENTO INPUT) ---
+if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+        const termo = e.target.value.toLowerCase();
+
+        // Filtra a lista global verificando nome, marca ou modelo
+        const listaFiltrada = listaProdutosGlobal.filter(prod => {
+            const nome = prod.nome_prod ? prod.nome_prod.toLowerCase() : "";
+            const marca = prod.marca ? prod.marca.toLowerCase() : "";
+            const modelo = prod.modelo ? prod.modelo.toLowerCase() : "";
+
+            return nome.includes(termo) || marca.includes(termo) || modelo.includes(termo);
+        });
+
+        // Redesenha a tabela apenas com os filtrados
+        renderizarTabela(listaFiltrada);
+    });
+}
+
+
+// --- 4. CADASTRO DE PRODUTO (POST) ---
 formulario.addEventListener("submit", async (event) => {
     event.preventDefault(); 
 
-    let nomeProd = document.querySelector(".input-nome-modal").value;
-    let precoProd = document.querySelector(".input-preco").value; 
-    let qtdProd = document.querySelector(".input-quantidade").value;
-
     const dadosProduto = {
-        nome_prod: nomeProd, 
-        preco: parseFloat(precoProd),
-        quantidade: parseInt(qtdProd) 
+        nome_prod: document.querySelector(".input-nome-modal").value,
+        marca: document.querySelector(".input-marca").value,
+        modelo: document.querySelector(".input-modelo").value,
+        material: document.querySelector(".input-material").value,
+        tamanho: document.querySelector(".input-tamanho").value,
+        tensao: document.querySelector(".input-tensao").value,
+        quantidade: parseInt(document.querySelector(".input-quantidade").value),
+        estoque_minimo: parseInt(document.querySelector(".input-minimo").value)
     };
 
+    if (!dadosProduto.nome_prod || isNaN(dadosProduto.quantidade)) {
+        alert("Preencha o nome e a quantidade corretamente.");
+        return;
+    }
+
     try {
-        const response = await fetch('http://localhost:2005/produtoCadastro', {
+        const response = await fetch(`${API_URL}/produtoCadastro`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dadosProduto)
@@ -87,7 +170,7 @@ formulario.addEventListener("submit", async (event) => {
             alert("Sucesso: Produto cadastrado!"); 
             modal.style.display = "none";
             formulario.reset(); 
-            carregarProdutos(); 
+            carregarProdutos(); // Atualiza a lista global e a tabela
         } else {
             alert("Erro do servidor: " + respostaTexto);
         }
@@ -98,43 +181,55 @@ formulario.addEventListener("submit", async (event) => {
     }
 });
 
-document.addEventListener("DOMContentLoaded", () => {
-    carregarProdutos();
-});
 
-// --- FUNÇÃO EDITAR (CORRIGIDA E CONECTADA AO BOTÃO) ---
-async function editarProduto(id, nome_prod, preco, quantidade) {
+// --- 5. EDITAR PRODUTO (PUT) ---
+async function editarProduto(id, nomeAtual, marcaAtual, modeloAtual, matAtual, tamAtual, tensaoAtual, qtdAtual, minAtual) {
     
-    // Agora o prompt já vem preenchido com o valor atual (ex: "Coca Cola")
-    const novoTitulo = prompt("Digite o novo titulo", nome_prod);
-    
-    if (novoTitulo === null) return; // Cancelou
+    const novoNome = prompt("Nome do Produto:", nomeAtual);
+    if (novoNome === null) return; 
 
-    // Preenche os prompts de número com o valor atual
-    const novoPreco = parseFloat(prompt("Digite o novo preco", preco));
-    const novaQuantidade = parseInt(prompt("Nova quantidade", quantidade));
+    const novaMarca = prompt("Marca:", marcaAtual);
+    if (novaMarca === null) return;
 
-    if (isNaN(novoPreco) || isNaN(novaQuantidade)) {
-        alert("Preço ou quantidade inválidos!");
-        return;
-    }
+    const novoModelo = prompt("Modelo:", modeloAtual);
+    if (novoModelo === null) return;
+
+    const novoMaterial = prompt("Material:", matAtual);
+    if (novoMaterial === null) return;
+
+    const novoTamanho = prompt("Tamanho/Peso:", tamAtual);
+    if (novoTamanho === null) return;
+
+    const novaTensao = prompt("Tensão (ex: 220v, N/A):", tensaoAtual);
+    if (novaTensao === null) return;
+
+    const novaQtd = parseInt(prompt("Quantidade em Estoque:", qtdAtual));
+    if (isNaN(novaQtd)) return;
+
+    const novoMinimo = parseInt(prompt("Estoque Mínimo (Alerta):", minAtual));
+    if (isNaN(novoMinimo)) return;
 
     try {
-        const response = await fetch("http://localhost:2005/editarProduto", {
+        const response = await fetch(`${API_URL}/editarProduto`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 id: id,
-                nome_prod: novoTitulo,
-                preco: novoPreco,
-                quantidade: novaQuantidade
+                nome_prod: novoNome,
+                marca: novaMarca,
+                modelo: novoModelo,
+                material: novoMaterial,
+                tamanho: novoTamanho,
+                tensao: novaTensao,
+                quantidade: novaQtd,
+                estoque_minimo: novoMinimo
             })
         });
 
         if (!response.ok) throw new Error(await response.text());
 
         alert("Produto editado com sucesso!");
-        carregarProdutos(); // Atualiza a tela automaticamente
+        carregarProdutos();
 
     } catch (err) {
         console.error(err);
@@ -142,26 +237,20 @@ async function editarProduto(id, nome_prod, preco, quantidade) {
     }
 }
 
+// --- 6. EXCLUIR PRODUTO (DELETE) ---
 async function excluirProduto(id) {
-    // 1. Pergunta de confirmação
     if (confirm("Tem certeza que deseja excluir o ID " + id + "?")) {
-        
         try {
-           
-            const response = await fetch(`/deletarProduto/${id}`, {
+            const response = await fetch(`${API_URL}/deletarProduto/${id}`, {
                 method: 'DELETE'
             });
 
-          
             if (response.ok) {
                 alert("Produto excluído com sucesso!");
-                
-                // Recarrega a página para atualizar a tabela
-                window.location.reload(); 
+                carregarProdutos(); 
             } else {
                 alert("Erro ao excluir no servidor.");
             }
-
         } catch (error) {
             console.error("Erro de rede:", error);
             alert("Não foi possível conectar ao servidor.");
@@ -169,3 +258,7 @@ async function excluirProduto(id) {
     }
 }
 
+// --- INICIALIZAÇÃO ---
+document.addEventListener("DOMContentLoaded", () => {
+    carregarProdutos();
+});
